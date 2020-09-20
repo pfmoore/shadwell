@@ -1,14 +1,15 @@
+import enum
 import re
 import sys
-from packaging.versions import Version
+from packaging.version import Version
 from packaging.tags import Tag, sys_tags, parse_tag
 from packaging.specifiers import SpecifierSet
+from typing import Optional, Callable, Set, Tuple, List
+
 
 def normalize(name):
     return re.sub(r"[-_.]+", "-", name).lower()
 
-def source(name):
-    # Yield candidates for NAME
 
 # Maybe use this to allow
 # only_binary = True|False|set(name)
@@ -24,12 +25,14 @@ class TriState:
     def state(self, name):
         return self.always or name in self.names
 
+
 class Candidate:
     name: str
     version: Version
     requires_python: SpecifierSet
     is_binary: bool
     tags: Set[Tag]
+
 
 def attributes_from_filename(obj: Candidate, filename: str) -> None:
     filename = filename.lower()
@@ -47,6 +50,7 @@ def attributes_from_filename(obj: Candidate, filename: str) -> None:
         # else:
         #     build = None
         obj.tags = parse_tag(tag)
+
     elif filename.endswith(".tar.gz"):
         obj.is_binary = False
         # We are requiring a PEP 440 version, which cannot contain dashes,
@@ -56,7 +60,9 @@ def attributes_from_filename(obj: Candidate, filename: str) -> None:
         obj.version = Version(version)
         obj.tags = set()
 
+
 SortKey = Tuple[int, Version, int]
+
 
 # Require binary (bool or set of names, default False)
 # Disallow binary (bool or set of names, default False)
@@ -65,24 +71,54 @@ SortKey = Tuple[int, Version, int]
 # Python version (Version, default interpreter version)
 # Allow prerelease
 
-class BinaryPolicy(Enum):
+
+class BinaryPolicy(enum.Enum):
     ALLOW = enum.auto()  # Source or binary is OK (default)
     REQUIRE = enum.auto()  # Must be binary
     PROHIBIT = enum.auto()  # Must be source
     PREFER = enum.auto()  # May be either, but prefer binary
 
+
+def match(tags: Set[Tag], sys_tags: List[Tag]) -> int:
+    # Returns a compatibility value
+    max_compat = len(sys_tags)
+    for i, tag in enumerate(sys_tags):
+        if tag in tags:
+            return max_compat - i
+    return 0
+
+
 class Finder:
     compatibility_tags: List[Tag]
     allow_prerelease: bool
     python_version: Version
+    binary_policy: Callable[[str], BinaryPolicy]
 
-    def binary_policy(self, name: str) -> BinaryPolicy:
-        pass
 
-    def filter(self, candidate: Candidate) -> Optional[SortKey]:
+    def __init__(self,
+        compatibility_tags: Optional[List[Tag]] = None,
+        allow_prerelease: bool = False,
+        python_version: Optional[Version] = None,
+        binary_policy: Optional[Callable[[str], BinaryPolicy]] = None,
+    ):
+        # Default values
+        if compatibility_tags is None:
+            compatibility_tags = list(sys_tags())
+        if python_version is None:
+            python_version = Version("{0.major}.{0.minor}.{0.micro}".format(sys.version_info))
+        if binary_policy is None:
+            binary_policy = lambda name: BinaryPolicy.ALLOW
+
+        self.compatibility_tags = compatibility_tags
+        self.allow_prerelease = allow_prerelease
+        self.python_version = python_version
+        self.binary_policy = binary_policy
+
+
+    def sort_key(self, candidate: Candidate) -> Optional[SortKey]:
 
         # Handle the simple cases first (prerelease and Python version)
-        if candidate.version.is_prerelease():
+        if candidate.version.is_prerelease:
             if not self.allow_prerelease:
                 return None
 
@@ -118,28 +154,14 @@ class Finder:
 
         return (binary_first, candidate.version, compatibility_level)
 
-def match(tags: Set[Tag], sys_tags: List[Tag]) -> int:
-    # Returns a compatibility value
-    max_compat = len(sys_tags)
-    for i, tag in enumerate(sys_tags):
-        if tag in tags:
-            return max_compat - i
-    return 0
 
-class DefaultFinder(Finder):
-    def __init__(self, allow_prerelease: bool = False):
-        self.compatibility_tags = list(sys_tags())
-        self.allow_prerelease = allow_prerelease
-        self.python_version = Version("{0.major}.{0.minor}.{0.micro}".format(sys.version_info))
-    def binary_first(self, name: str) -> BinaryPolicy:
-        return BinaryPolicy.ALLOW
-
-candidates = ((filter(c), c) for c in source(name))
-candidates = ((k, c) for (k, c) in candidates if k is not None)
-candidates = sorted(candidates)
-candidates = (c for (k, c) in candidates)
+    def get_candidates(self, source):
+        candidates = ((self.sort_key(c), c) for c in source)
+        candidates = ((k, c) for (k, c) in candidates if k is not None)
+        candidates = sorted(candidates, reverse=True)
+        return (c for (k, c) in candidates)
 
 
-for candidate in candidates:
-    print(candidate)
+# for candidate in candidates:
+#     print(candidate)
 
