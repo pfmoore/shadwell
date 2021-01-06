@@ -11,21 +11,6 @@ def normalize(name):
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-# Maybe use this to allow
-# only_binary = True|False|set(name)
-class TriState:
-    def __init__(self, value):
-        if value == True:
-            self.always = True
-        else:
-            if value == False:
-                value = set()
-            self.always = False
-            self.names = set(value)
-    def state(self, name):
-        return self.always or name in self.names
-
-
 class Candidate:
     name: str
     version: Version
@@ -34,31 +19,27 @@ class Candidate:
     tags: Set[Tag]
 
 
-def attributes_from_filename(obj: Candidate, filename: str) -> None:
-    filename = filename.lower()
-    if filename.endswith(".whl"):
-        obj.is_binary = True
-        filename = filename[:-4]
-        dashes = filename.count("-")
-        assert dashes in (4, 5), f"{filename} is incorrect format"
-        name, ver, *build, tag = filename.split("-", dashes-2)
-        obj.name = normalize(name)
-        obj.version = Version(ver)
-        # if build:
-        #     build = build[0]
-        #     assert build[0].isdigit(), f"Build number {build} must start with a digit"
-        # else:
-        #     build = None
-        obj.tags = parse_tag(tag)
+    def attributes_from_filename(self, filename: str) -> None:
+        filename = filename.lower()
 
-    elif filename.endswith(".tar.gz"):
-        obj.is_binary = False
-        # We are requiring a PEP 440 version, which cannot contain dashes,
-        # so we split on the last dash.
-        name, sep, version = filename[:-7].rpartition("-")
-        obj.name = normalize(name)
-        obj.version = Version(version)
-        obj.tags = set()
+        if filename.endswith(".whl"):
+            self.is_binary = True
+            filename = filename[:-4]
+            dashes = filename.count("-")
+            assert dashes in (4, 5), f"{filename} is incorrect format"
+            name, ver, *build, tag = filename.split("-", dashes-2)
+            self.name = normalize(name)
+            self.version = Version(ver)
+            self.tags = parse_tag(tag)
+
+        elif filename.endswith(".tar.gz"):
+            self.is_binary = False
+            # We are requiring a PEP 440 version, which cannot contain dashes,
+            # so we split on the last dash.
+            name, sep, version = filename[:-7].rpartition("-")
+            self.name = normalize(name)
+            self.version = Version(version)
+            self.tags = set()
 
 
 SortKey = Tuple[int, Version, int]
@@ -160,8 +141,3 @@ class Finder:
         candidates = ((k, c) for (k, c) in candidates if k is not None)
         candidates = sorted(candidates, reverse=True)
         return (c for (k, c) in candidates)
-
-
-# for candidate in candidates:
-#     print(candidate)
-

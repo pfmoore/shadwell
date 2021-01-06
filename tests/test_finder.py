@@ -1,4 +1,4 @@
-from shadwell.finder import Finder, attributes_from_filename, Candidate
+from shadwell.finder import Finder, Candidate
 from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.version import Version
@@ -14,7 +14,7 @@ FILES = [
 class C(Candidate):
     def __init__(self, filename):
         self.filename = filename
-        attributes_from_filename(self, filename)
+        self.attributes_from_filename(filename)
         self.requires_python = SpecifierSet()
 
 
