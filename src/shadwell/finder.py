@@ -42,6 +42,11 @@ class Candidate:
             self.tags = set()
 
 
+class Source:
+    def get(self, name):
+        pass
+
+
 SortKey = Tuple[int, Version, int]
 
 
@@ -77,6 +82,7 @@ class Finder:
 
 
     def __init__(self,
+        sources: List[Source],
         compatibility_tags: Optional[List[Tag]] = None,
         allow_prerelease: bool = False,
         python_version: Optional[Version] = None,
@@ -90,6 +96,7 @@ class Finder:
         if binary_policy is None:
             binary_policy = lambda name: BinaryPolicy.ALLOW
 
+        self.sources = sources
         self.compatibility_tags = compatibility_tags
         self.allow_prerelease = allow_prerelease
         self.python_version = python_version
@@ -136,8 +143,9 @@ class Finder:
         return (binary_first, candidate.version, compatibility_level)
 
 
-    def get_candidates(self, source):
-        candidates = ((self.sort_key(c), c) for c in source)
+    def get_candidates(self, name):
+        candidates = (c for s in self.sources for c in s.get(name))
+        candidates = ((self.sort_key(c), c) for c in candidates)
         candidates = ((k, c) for (k, c) in candidates if k is not None)
         candidates = sorted(candidates, reverse=True)
         return (c for (k, c) in candidates)
