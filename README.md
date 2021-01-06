@@ -61,11 +61,18 @@ is up to the source, but they must have the following attributes:
 * `is_binary`: Is this a binary (wheel) or source (sdist).
 * `tags`: The compatibility tags for this (binary) distribution.
   (`Set[packaging.tags.Tag]`)
+* `is_yanked`: Is this file yanked?
 
 ## Sources
-A `source` is any Python object - the only requirement is that it has a
-`get(name)` method, which yields candidate objects for the named project.
-Note in particular that it is *not* the responsibility of the source to
-do any sort of filtering.
+A `source` is any Python callable that takes a project name as an argument,
+and yields candidate objects for the named project. Note in particular that
+it is *not* the responsibility of the source to do any sort of filtering.
 
-**TODO: Maybe just make each source a callable?**
+## Further possibilities
+
+1. Rather than having the finder return a flat list of candidates,
+   maybe return a list of (version, ordered list of candidates)?
+   That allows callers to more easily select the best candidate per
+   version. However, "prefer binary" may split the candidates for
+   a version into 2 parts (binaries in one batch, sources in another),
+   and that would be potentially *harder* for callers...
