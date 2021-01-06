@@ -1,62 +1,13 @@
 import enum
-import re
 import sys
 from packaging.version import Version
-from packaging.tags import Tag, sys_tags, parse_tag
-from packaging.specifiers import SpecifierSet
+from packaging.tags import Tag, sys_tags
+from packaging.requirements import Requirement
 from typing import Optional, Callable, Set, Tuple, List
 
-
-def normalize(name):
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-class Candidate:
-    name: str
-    version: Version
-    requires_python: SpecifierSet
-    is_binary: bool
-    tags: Set[Tag]
-
-
-    def attributes_from_filename(self, filename: str) -> None:
-        filename = filename.lower()
-
-        if filename.endswith(".whl"):
-            self.is_binary = True
-            filename = filename[:-4]
-            dashes = filename.count("-")
-            assert dashes in (4, 5), f"{filename} is incorrect format"
-            name, ver, *build, tag = filename.split("-", dashes-2)
-            self.name = normalize(name)
-            self.version = Version(ver)
-            self.tags = parse_tag(tag)
-
-        elif filename.endswith(".tar.gz"):
-            self.is_binary = False
-            # We are requiring a PEP 440 version, which cannot contain dashes,
-            # so we split on the last dash.
-            name, sep, version = filename[:-7].rpartition("-")
-            self.name = normalize(name)
-            self.version = Version(version)
-            self.tags = set()
-
-
-class Source:
-    def get(self, name):
-        pass
-
+from .candidate import Candidate
 
 SortKey = Tuple[int, Version, int]
-
-
-# Require binary (bool or set of names, default False)
-# Disallow binary (bool or set of names, default False)
-# Prefer binary (bool or set of names, default False)
-# Compatibility tags (list, default is sys_tags())
-# Python version (Version, default interpreter version)
-# Allow prerelease
-
 
 class BinaryPolicy(enum.Enum):
     ALLOW = enum.auto()  # Source or binary is OK (default)
@@ -65,28 +16,37 @@ class BinaryPolicy(enum.Enum):
     PREFER = enum.auto()  # May be either, but prefer binary
 
 
-def match(tags: Set[Tag], sys_tags: List[Tag]) -> int:
+def compatibility(tags: Set[Tag], sys_tags: List[Tag]) -> int:
+    """Given a set of tags, say "how compatible" it is.
+
+    A tag set is more compatible if it matches a tag earlier
+    in the list of system tags.
+
+    A return value of -1 means "not compatible".
+    """
     # Returns a compatibility value
     max_compat = len(sys_tags)
     for i, tag in enumerate(sys_tags):
         if tag in tags:
             return max_compat - i
-    return 0
+    return -1
 
 
 class Finder:
+    sources: List[Callable[[str], List[Candidate]]]
     compatibility_tags: List[Tag]
     allow_prerelease: bool
     python_version: Version
     binary_policy: Callable[[str], BinaryPolicy]
-
+    allow_yanked: bool
 
     def __init__(self,
-        sources: List[Source],
+        sources: List[Callable[[str], List[Candidate]]],
         compatibility_tags: Optional[List[Tag]] = None,
         allow_prerelease: bool = False,
         python_version: Optional[Version] = None,
         binary_policy: Optional[Callable[[str], BinaryPolicy]] = None,
+        allow_yanked: bool = False,
     ):
         # Default values
         if compatibility_tags is None:
@@ -101,11 +61,13 @@ class Finder:
         self.allow_prerelease = allow_prerelease
         self.python_version = python_version
         self.binary_policy = binary_policy
+        self.allow_yanked = allow_yanked
 
-
-    def sort_key(self, candidate: Candidate) -> Optional[SortKey]:
+    def _sort_key(self, candidate: Candidate) -> Optional[SortKey]:
 
         # Handle the simple cases first (prerelease and Python version)
+        # TODO: Allow prereleases if they are the only option? See
+        #       the rules in PEP 440.
         if candidate.version.is_prerelease:
             if not self.allow_prerelease:
                 return None
@@ -123,8 +85,8 @@ class Finder:
             elif binary == BinaryPolicy.PREFER:
                 binary_first = 1
 
-            compatibility_level = match(candidate.tags, self.compatibility_tags)
-            if compatibility_level == 0:
+            compatibility_level = compatibility(candidate.tags, self.compatibility_tags)
+            if compatibility_level == -1:
                 return None
         else:
             if binary == BinaryPolicy.REQUIRE:
@@ -142,10 +104,24 @@ class Finder:
 
         return (binary_first, candidate.version, compatibility_level)
 
+    def get_candidates(self, req: Requirement) -> List[Candidate]:
+        """Return candidates matching the requirement.
+        """
+        candidates = []
+        for source in self.sources:
+            for candidate in source(req.name):
+                if candidate.version not in req.specifier:
+                    continue
+                key = self._sort_key(candidate)
+                if key is None:
+                    continue
+                candidates.append((key, candidate))
+        candidates.sort(reverse=True)
+        candidates = [c for (k, c) in candidates]
 
-    def get_candidates(self, name):
-        candidates = (c for s in self.sources for c in s.get(name))
-        candidates = ((self.sort_key(c), c) for c in candidates)
-        candidates = ((k, c) for (k, c) in candidates if k is not None)
-        candidates = sorted(candidates, reverse=True)
-        return (c for (k, c) in candidates)
+        # If we allow yanked candidates when they are the only option,
+        # do so now.
+        if self.allow_yanked and all(c.is_yanked for c in candidates):
+            return candidates
+
+        return [c for c in candidates if not c.is_yanked]

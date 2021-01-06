@@ -2,6 +2,7 @@ from shadwell.finder import Finder, Candidate
 from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.version import Version
+from packaging.requirements import Requirement
 
 FILES = [
     "proj-0.1.tar.gz",
@@ -16,28 +17,26 @@ class DummyCandidate(Candidate):
         self.filename = filename
         self.attributes_from_filename(filename)
         self.requires_python = SpecifierSet()
+        self.is_yanked = False
 
 
-class DummySource:
-    def __init__(self, files):
-        self.files = files
-    def get(self, name):
-        for filename in self.files:
-            c = DummyCandidate(filename)
-            if c.name == name:
-                yield c
+def dummy_source(name):
+    for filename in FILES:
+        c = DummyCandidate(filename)
+        if c.name == name:
+            yield c
 
 
 def test_finder():
     f = Finder(
         sources = [
-            DummySource(FILES),
+            dummy_source,
         ],
         compatibility_tags = [Tag("py3", "none", "any")],
         python_version = Version("3.8"),
     )
 
-    assert [c.filename for c in f.get_candidates("proj")] == [
+    assert [c.filename for c in f.get_candidates(Requirement("proj"))] == [
         "proj-0.3.tar.gz",
         "proj-0.2-py3-none-any.whl",
         "proj-0.2.tar.gz",

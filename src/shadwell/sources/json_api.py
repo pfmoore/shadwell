@@ -8,7 +8,7 @@ PYPI_TEMPLATE = "https://pypi.org/pypi/{pkg}/json"
 class JsonSource:
     def __init__(self, template=PYPI_TEMPLATE):
         self.template = template
-    def get(self, name):
+    def __call__(self, name):
         with urlopen(self.template.format(pkg=name)) as f:
             data = json.load(f)
         for release in data["releases"]:
