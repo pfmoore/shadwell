@@ -13,7 +13,7 @@ class Candidate:
     name: str
     version: Version
     requires_python: SpecifierSet
-    is_binary: bool
+    is_wheel: bool
     tags: Set[Tag]
     is_yanked: bool
 
@@ -22,7 +22,7 @@ class Candidate:
         filename = filename.lower()
 
         if filename.endswith(".whl"):
-            self.is_binary = True
+            self.is_wheel = True
             filename = filename[:-4]
             dashes = filename.count("-")
             assert dashes in (4, 5), f"{filename} is incorrect format"
@@ -32,7 +32,7 @@ class Candidate:
             self.tags = parse_tag(tag)
 
         elif filename.endswith(".tar.gz"):
-            self.is_binary = False
+            self.is_wheel = False
             # We are requiring a PEP 440 version, which cannot contain dashes,
             # so we split on the last dash.
             name, sep, version = filename[:-7].rpartition("-")

@@ -1,7 +1,9 @@
 # Shadwell - A finder for Python packages
 
-> "It wasn't a dark and stormy night.
->  It should have been, but that's the weather for you."
+> It wasn't a dark and stormy night.<br/>
+> It should have been, but that's the weather for you.
+> 
+>  -- *"Good Omens", by Terry Pratchett and Neil Gaiman*
 
 Shadwell lets you find Python packages, from a set of "sources" (typically
 a package index or local directory).
@@ -36,12 +38,12 @@ configure its behaviour:
   target Python release. It is used to filter candidates based on their
   `Requires-Python` metadata. As usual, the current interpreter is used
   by default.
-* `binary_policy`: This is a function that determines for a package, how
-  we should choose between binary and source distributions. Called with a
-  package name, it should return one of the `BinaryPolicy` values `ALLOW`
-  (binaries can be used), `REQUIRE` (only binaries are allowed), `PROHIBIT`
-  (binaries cannot be used, only sources are allowed) or `PREFER` (older
-  binaries will be selected in preference to newer source-only versions).
+* `wheel_policy`: This is a function that determines for a package, how
+  we should choose between wheels and source distributions. Called with a
+  package name, it should return one of the `WheelPolicy` values `ALLOW`
+  (wheels can be used), `REQUIRE` (only wheels are allowed), `PROHIBIT`
+  (wheels cannot be used, only sdists are allowed) or `PREFER` (older
+  wheels will be selected in preference to newer source-only versions).
 * `allow_yanked`: This option only affects the case where all of the
   selected candidates are yanked. If there are any unyanked candidates,
   yanked candidates will be omitted regardless of the value of this option.
@@ -58,8 +60,8 @@ is up to the source, but they must have the following attributes:
 * `version`: The project version (`packaging.version.Version`)
 * `requires_python`: The Python versions this candidate works with
   (`packaging.specifiers.SpecifierSet`)
-* `is_binary`: Is this a binary (wheel) or source (sdist).
-* `tags`: The compatibility tags for this (binary) distribution.
+* `is_wheel`: Is this a wheel or sdist.
+* `tags`: The compatibility tags for this wheel (ignored for sdists).
   (`Set[packaging.tags.Tag]`)
 * `is_yanked`: Is this file yanked?
 
@@ -73,6 +75,6 @@ it is *not* the responsibility of the source to do any sort of filtering.
 1. Rather than having the finder return a flat list of candidates,
    maybe return a list of (version, ordered list of candidates)?
    That allows callers to more easily select the best candidate per
-   version. However, "prefer binary" may split the candidates for
-   a version into 2 parts (binaries in one batch, sources in another),
+   version. However, "prefer wheel" may split the candidates for
+   a version into 2 parts (wheels in one batch, sources in another),
    and that would be potentially *harder* for callers...

@@ -9,11 +9,11 @@ from .candidate import Candidate
 
 SortKey = Tuple[int, Version, int]
 
-class BinaryPolicy(enum.Enum):
-    ALLOW = enum.auto()  # Source or binary is OK (default)
-    REQUIRE = enum.auto()  # Must be binary
+class WheelPolicy(enum.Enum):
+    ALLOW = enum.auto()  # Source or wheel is OK (default)
+    REQUIRE = enum.auto()  # Must be wheel
     PROHIBIT = enum.auto()  # Must be source
-    PREFER = enum.auto()  # May be either, but prefer binary
+    PREFER = enum.auto()  # May be either, but prefer wheel
 
 
 def compatibility(tags: Set[Tag], sys_tags: List[Tag]) -> int:
@@ -37,7 +37,7 @@ class Finder:
     compatibility_tags: List[Tag]
     allow_prerelease: bool
     python_version: Version
-    binary_policy: Callable[[str], BinaryPolicy]
+    wheel_policy: Callable[[str], WheelPolicy]
     allow_yanked: bool
 
     def __init__(self,
@@ -45,7 +45,7 @@ class Finder:
         compatibility_tags: Optional[List[Tag]] = None,
         allow_prerelease: bool = False,
         python_version: Optional[Version] = None,
-        binary_policy: Optional[Callable[[str], BinaryPolicy]] = None,
+        wheel_policy: Optional[Callable[[str], WheelPolicy]] = None,
         allow_yanked: bool = False,
     ):
         # Default values
@@ -53,14 +53,14 @@ class Finder:
             compatibility_tags = list(sys_tags())
         if python_version is None:
             python_version = Version("{0.major}.{0.minor}.{0.micro}".format(sys.version_info))
-        if binary_policy is None:
-            binary_policy = lambda name: BinaryPolicy.ALLOW
+        if wheel_policy is None:
+            wheel_policy = lambda name: WheelPolicy.ALLOW
 
         self.sources = sources
         self.compatibility_tags = compatibility_tags
         self.allow_prerelease = allow_prerelease
         self.python_version = python_version
-        self.binary_policy = binary_policy
+        self.wheel_policy = wheel_policy
         self.allow_yanked = allow_yanked
 
     def _sort_key(self, candidate: Candidate) -> Optional[SortKey]:
@@ -72,24 +72,25 @@ class Finder:
             if not self.allow_prerelease:
                 return None
 
+        print(self.python_version, "<==>", candidate.requires_python)
         if self.python_version not in candidate.requires_python:
             return None
 
-        # Binary handling. We need to know the policy.
-        binary = self.binary_policy(candidate.name)
-        binary_first = 0
+        # Wheel handling. We need to know the policy.
+        wheel = self.wheel_policy(candidate.name)
+        wheel_first = 0
 
-        if candidate.is_binary:
-            if binary == BinaryPolicy.PROHIBIT:
+        if candidate.is_wheel:
+            if wheel == WheelPolicy.PROHIBIT:
                 return None
-            elif binary == BinaryPolicy.PREFER:
-                binary_first = 1
+            elif wheel == WheelPolicy.PREFER:
+                wheel_first = 1
 
             compatibility_level = compatibility(candidate.tags, self.compatibility_tags)
             if compatibility_level == -1:
                 return None
         else:
-            if binary == BinaryPolicy.REQUIRE:
+            if wheel == WheelPolicy.REQUIRE:
                 return None
 
             # Source distributions are considered
@@ -98,11 +99,11 @@ class Finder:
 
         # We're a valid match. Sort key is:
         #
-        #   - Binary first, if prefer_binary
+        #   - Wheel first, if prefer_wheel
         #   - Version
         #   - More compatible before less compatible
 
-        return (binary_first, candidate.version, compatibility_level)
+        return (wheel_first, candidate.version, compatibility_level)
 
     def get_candidates(self, req: Requirement) -> List[Candidate]:
         """Return candidates matching the requirement.
