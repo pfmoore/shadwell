@@ -2,12 +2,9 @@ import re
 from typing import Set
 
 from packaging.specifiers import SpecifierSet
-from packaging.tags import Tag, parse_tag
+from packaging.tags import Tag
+from packaging.utils import parse_sdist_filename, parse_wheel_filename
 from packaging.version import Version
-
-
-def normalize(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 class Candidate:
@@ -23,19 +20,11 @@ class Candidate:
 
         if filename.endswith(".whl"):
             self.is_wheel = True
-            filename = filename[:-4]
-            dashes = filename.count("-")
-            assert dashes in (4, 5), f"{filename} is incorrect format"
-            name, ver, *build, tag = filename.split("-", dashes - 2)
-            self.name = normalize(name)
-            self.version = Version(ver)
-            self.tags = parse_tag(tag)
+            self.name, self.version, _, self.tags = parse_wheel_filename(filename)
 
         elif filename.endswith(".tar.gz"):
             self.is_wheel = False
             # We are requiring a PEP 440 version, which cannot contain dashes,
             # so we split on the last dash.
-            name, sep, version = filename[:-7].rpartition("-")
-            self.name = normalize(name)
-            self.version = Version(version)
+            self.name, self.version = parse_sdist_filename(filename)
             self.tags = set()
