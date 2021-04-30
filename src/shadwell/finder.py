@@ -72,7 +72,6 @@ class Finder:
             if not self.allow_prerelease:
                 return None
 
-        print(self.python_version, "<==>", candidate.requires_python)
         if self.python_version not in candidate.requires_python:
             return None
 
