@@ -70,13 +70,7 @@ class Finder:
 
     def _sort_key(self, candidate: Candidate) -> Optional[SortKey]:
 
-        # Handle the simple cases first (prerelease and Python version)
-        # TODO: Allow prereleases if they are the only option? See
-        #       the rules in PEP 440.
-        if candidate.version.is_prerelease:
-            if not self.allow_prerelease:
-                return None
-
+        # Handle the simple case first.
         if self.python_version not in candidate.requires_python:
             return None
 
@@ -114,7 +108,7 @@ class Finder:
         candidates = []
         for source in self.sources:
             for candidate in source(req.name):
-                if candidate.version not in req.specifier:
+                if not req.specifier.contains(candidate.version, True):
                     continue
                 key = self._sort_key(candidate)
                 if key is None:
@@ -122,6 +116,14 @@ class Finder:
                 candidates.append((key, candidate))
         candidates.sort(reverse=True)
         candidates = [c for (k, c) in candidates]
+
+        # Remove prereleases unless we explicitly allow them, or the only
+        # versions selected are pre-releases.
+        # See https://www.python.org/dev/peps/pep-0440/#handling-of-pre-releases
+        if not (
+            self.allow_prerelease or all(c.version.is_prerelease for c in candidates)
+        ):
+            candidates = [c for c in candidates if not c.version.is_prerelease]
 
         # If we allow yanked candidates when they are the only option,
         # do so now.
