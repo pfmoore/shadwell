@@ -1,13 +1,17 @@
-from urllib.request import urlopen
 import json
+from urllib.request import urlopen
+
 from packaging.specifiers import SpecifierSet
+
 from ..finder import Candidate
 
 PYPI_TEMPLATE = "https://pypi.org/pypi/{pkg}/json"
 
+
 class JsonSource:
     def __init__(self, template=PYPI_TEMPLATE):
         self.template = template
+
     def __call__(self, name):
         with urlopen(self.template.format(pkg=name)) as f:
             data = json.load(f)

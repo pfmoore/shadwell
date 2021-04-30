@@ -2,7 +2,7 @@
 
 > It wasn't a dark and stormy night.<br/>
 > It should have been, but that's the weather for you.
-> 
+>
 >  -- *"Good Omens", by Terry Pratchett and Neil Gaiman*
 
 Shadwell lets you find Python packages, from a set of "sources" (typically

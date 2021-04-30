@@ -1,8 +1,9 @@
 import re
-from packaging.version import Version
-from packaging.tags import Tag, parse_tag
-from packaging.specifiers import SpecifierSet
 from typing import Set
+
+from packaging.specifiers import SpecifierSet
+from packaging.tags import Tag, parse_tag
+from packaging.version import Version
 
 
 def normalize(name: str) -> str:
@@ -17,7 +18,6 @@ class Candidate:
     tags: Set[Tag]
     is_yanked: bool
 
-
     def attributes_from_filename(self, filename: str) -> None:
         filename = filename.lower()
 
@@ -26,7 +26,7 @@ class Candidate:
             filename = filename[:-4]
             dashes = filename.count("-")
             assert dashes in (4, 5), f"{filename} is incorrect format"
-            name, ver, *build, tag = filename.split("-", dashes-2)
+            name, ver, *build, tag = filename.split("-", dashes - 2)
             self.name = normalize(name)
             self.version = Version(ver)
             self.tags = parse_tag(tag)

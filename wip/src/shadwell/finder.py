@@ -21,10 +21,12 @@
 # Normalized project names
 # See https://www.python.org/dev/peps/pep-0503/#normalized-names
 
-import re
 import enum
-from packaging.version import Version, parse
+import re
+
 from packaging.tags import Tag, parse_tag
+from packaging.version import Version, parse
+
 
 def normalize(name):
     return re.sub(r"[-_.]+", "-", name).lower()

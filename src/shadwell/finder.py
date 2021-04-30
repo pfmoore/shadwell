@@ -1,13 +1,15 @@
 import enum
 import sys
-from packaging.version import Version
-from packaging.tags import Tag, sys_tags
+from typing import Callable, List, Optional, Set, Tuple
+
 from packaging.requirements import Requirement
-from typing import Optional, Callable, Set, Tuple, List
+from packaging.tags import Tag, sys_tags
+from packaging.version import Version
 
 from .candidate import Candidate
 
 SortKey = Tuple[int, Version, int]
+
 
 class WheelPolicy(enum.Enum):
     ALLOW = enum.auto()  # Source or wheel is OK (default)
@@ -40,7 +42,8 @@ class Finder:
     wheel_policy: Callable[[str], WheelPolicy]
     allow_yanked: bool
 
-    def __init__(self,
+    def __init__(
+        self,
         sources: List[Callable[[str], List[Candidate]]],
         compatibility_tags: Optional[List[Tag]] = None,
         allow_prerelease: bool = False,
@@ -52,7 +55,9 @@ class Finder:
         if compatibility_tags is None:
             compatibility_tags = list(sys_tags())
         if python_version is None:
-            python_version = Version("{0.major}.{0.minor}.{0.micro}".format(sys.version_info))
+            python_version = Version(
+                "{0.major}.{0.minor}.{0.micro}".format(sys.version_info)
+            )
         if wheel_policy is None:
             wheel_policy = lambda name: WheelPolicy.ALLOW
 
@@ -105,8 +110,7 @@ class Finder:
         return (wheel_first, candidate.version, compatibility_level)
 
     def get_candidates(self, req: Requirement) -> List[Candidate]:
-        """Return candidates matching the requirement.
-        """
+        """Return candidates matching the requirement."""
         candidates = []
         for source in self.sources:
             for candidate in source(req.name):

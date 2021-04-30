@@ -1,7 +1,9 @@
-import sqlite3
 import json
-from shadwell.finder import Candidate, normalize
+import sqlite3
+
 from packaging.version import parse
+
+from shadwell.finder import Candidate, normalize
 
 DB = sqlite3.connect(r"C:\Work\Scratch\pypidata\PyPI.db")
 
@@ -23,5 +25,3 @@ for name, json_data in DB.execute("select name, json from package_data_json").fe
                     print(f"Version mismatch: {name} {rel}: {filename}")
             except Exception as e:
                 print(f"ERROR: {name}, {rel}, {filename}: {e}")
-
-

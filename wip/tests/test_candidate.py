@@ -1,6 +1,7 @@
-from packaging.version import Version
 import hypothesis.strategies as s
 from hypothesis import given
+from packaging.version import Version
+
 
 def optional(strat):
     return s.one_of(s.none(), strat)
