@@ -12,7 +12,7 @@ FILES = [
     "proj-0.1-py2.py3-none-any.whl",
 ]
 
-class TestCandidate(Candidate):
+class MyCandidate(Candidate):
     def __init__(self, filename):
         self.filename = filename
         self.attributes_from_filename(filename)
@@ -23,7 +23,7 @@ class TestCandidate(Candidate):
 def test_finder_ordering():
     def src(name):
         for filename in FILES:
-            c = TestCandidate(filename)
+            c = MyCandidate(filename)
             if c.name == name:
                 yield c
     f = Finder(
@@ -43,7 +43,7 @@ def test_finder_ordering():
 def test_finder_matches_tags():
     def src(name):
         for filename in FILES:
-            c = TestCandidate(filename)
+            c = MyCandidate(filename)
             if c.name == name:
                 yield c
     f = Finder(
@@ -62,7 +62,7 @@ def test_finder_matches_tags():
 def test_finder_respects_requires_python():
     def src(name):
         for filename in FILES:
-            c = TestCandidate(filename)
+            c = MyCandidate(filename)
             if '0.1' in filename:
                 c.requires_python = SpecifierSet("<=3.7")
             if c.name == name:
@@ -83,7 +83,7 @@ def test_finder_respects_requires_python():
 def test_finder_respects_yanked():
     def src(name):
         for filename in FILES:
-            c = TestCandidate(filename)
+            c = MyCandidate(filename)
             if '0.1' in filename:
                 c.is_yanked = True
             if c.name == name:
